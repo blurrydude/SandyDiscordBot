@@ -108,23 +108,19 @@ class MapGenerator:
     
     def place_random_town(self, tmap):
         print("place_random_town")
+        s = random.randint(1,5)*5
         rpoint = (
             random.randint(2,tmap.width),
             random.randint(2,tmap.height)
         )
-        rsize = (
-            random.randint(1,5)*5,
-            random.randint(1,5)*5
-        )
+        rsize = (s,s)
         while self.check_placement(rpoint, rsize, tmap) is False:
             rpoint = (
                 random.randint(2,tmap.width),
                 random.randint(2,tmap.height)
             )
-            rsize = (
-                random.randint(1,5)*5,
-                random.randint(1,5)*5
-            )
+            rsize = (s,s)
+        tmap.towns.append(Town(rpoint[0], rpoint[1], s))
         for y in range(rpoint[1], rpoint[1]+rsize[1]):
             for x in range(rpoint[0], rpoint[0]+rsize[0]):
                 tmap.terrain[y][x].t = "town"
@@ -133,18 +129,53 @@ class MapGenerator:
         print("check_placement "+str(point)+" "+str(size))
         for y in range(point[1], point[1]+size[1]):
             for x in range(point[0], point[0]+size[0]):
-                if tmap.terrain[y][x].t != "grass":
+                try:
+                    if tmap.terrain[y][x].t != "grass":
+                        return False
+                except:
                     return False
         print("placement good at "+str(point))
         return True
+    
+    def build_roads(self, tmap):
+        tmap.towns.sort(key=lambda x: x.size)
+        self.build_road(
+            tmap,
+            (tmap.towns[0].x, tmap.towns[0].y),
+            (tmap.towns[1].x, tmap.towns[1].y)
+        )
+        
+    def build_road(self, tmap, start_point, end_point):
+        ptr = start_point
+        mx = 0
+        my = 0
+        if start_point[0] < end_point[0]:
+            mx = 1
+        if start_point[0] > end_point[0]:
+            mx = -1
+        if start_point[1] < end_point[1]:
+            my = 1
+        if start_point[1] > end_point[1]:
+            my = -1
+        steps = 0
+        while ptr != end_point and steps < 1000:
+            steps = steps + 1
+            print(str(ptr))
+            try:
+                if tmap.terrain[ptr[1]][ptr[0]].t != "town":
+                    tmap.terrain[ptr[1]][ptr[0]].t = "path"
+            except:
+                do_nada = True
+            ptr = (ptr[0]-mx,ptr[1]+my)
 
     def create_big_map(self):
-        tmap = self.generate_terrain(start_size=4, level=10)
+        tmap = self.generate_terrain(start_size=4, level=8)
         towns = 5
         for i in range(towns):
             self.place_random_town(tmap)
+        self.build_roads(tmap)
         map = tmap.to_image()
-        map.save("tmap.bmp")
+        map.save("tmap.png")
     
 class Map:
     def __init__(self, width, height):
@@ -166,6 +197,8 @@ class Map:
             for x in range(self.width):
                 color = (0,0,0)
                 tile = self.terrain[y][x].t
+                if tile == "path":
+                    color = (72,64,0)
                 if tile == "grass":
                     color = (0,255,0)
                 if tile == "water":
@@ -191,6 +224,9 @@ class Building:
         self.size = size
 
 class Town:
-    def __init__(self):
+    def __init__(self, x, y, size):
         self.buildings = []
+        self.x = x
+        self.y = y
+        self.size = size
     
