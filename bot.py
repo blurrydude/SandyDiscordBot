@@ -334,11 +334,13 @@ def random_img(width, height):
     return img
 
 @bot.command(name='map', help='generates a map')
-async def mapgen(ctx):
+async def mapgen(ctx, *args):
     #random_img('random.png', x, y)
     img = random_img(4, 4)
     n = 4
     l = 7 # max(4,min(10, int(args[0])))
+    if len(args) > 0:
+        l = max(4,min(10, int(args[0])))
     water = 100 # min(255, int(args[1]))
     mount = 180 # min(255, int(args[2]))
     snow = 230 # min(255, int(args[3]))
