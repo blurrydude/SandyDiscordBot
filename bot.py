@@ -1,5 +1,7 @@
 # bot.py
 import os
+import time
+import subprocess
 import asyncio
 import json
 import requests
@@ -383,6 +385,26 @@ def convert_pixel(im, ix, iy, water, mountain, snow):
         im.putpixel((ix,iy), (128,128,128))
     else:
         im.putpixel((ix,iy), (0,255,0))
+
+
+
+@bot.command(name='update', help='update bot source code and restart')
+async def update(ctx):
+    await ctx.send("Getting source changes.")
+    result = subprocess.check_output(["git", "pull"]).decode("utf-8")
+    await ctx.send(result)
+    time.sleep(10)
+    await ctx.send("I am restarting for updates.")
+    subprocess.call(["python3", "bot.py"])
+    try:
+        main_loop.stop()
+    except:
+        pass
+    try:
+        bot.close()
+    except:
+        pass
+    exit()
 
 if __name__ == "__main__":
     main_loop.start()
