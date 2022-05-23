@@ -4,6 +4,8 @@ import asyncio
 import json
 import requests
 import random
+from PIL import Image, ImageFont, ImageDraw
+import numpy as np
 from dotenv import load_dotenv
 from datetime import datetime
 from discord import utils, File, Embed
@@ -324,6 +326,61 @@ async def getclass(ctx, arg):
 
     #embed.set_footer(text=data["description"])
     await ctx.send(embed=embed)
+
+def random_img(width, height):
+    array = np.random.random_integers(0,255, (height,width,3))  
+    array = np.array(array, dtype=np.uint8)
+    img = Image.fromarray(array)
+    return img
+
+@bot.command(name='map', help='generates a map')
+async def mapgen(ctx):
+    #random_img('random.png', x, y)
+    img = random_img(4, 4)
+    n = 4
+    l = 7 # max(4,min(10, int(args[0])))
+    water = 100 # min(255, int(args[1]))
+    mount = 180 # min(255, int(args[2]))
+    snow = 230 # min(255, int(args[3]))
+    # img.save('random_map.png')
+    # await ctx.send(file=File('random_map.png'))
+    for i in range(l):
+        n = n * 2
+        newsize = (n, n)
+        img = img.resize(newsize)
+        if i < l - 2:
+            for px in range(n-1):
+                for py in range(n-1):
+                    add_noise_one_pixel(img,px,py)
+        # img.save('random_map.png')
+        # await ctx.send(file=File('random_map.png'))
+                
+    for px in range(n):
+        for py in range(n):
+            convert_pixel(img,px,py,water,mount,snow)
+    img.save('random_map.png')
+    await ctx.send(file=File('random_map.png'))
+    # with open('my_file.png', 'rb') as fp:
+    #     await ctx.send(file=File(fp, 'new_filename.png'))
+
+def add_noise(x, mean, stddev):
+    return round(min(max(0, x+random.normalvariate(mean,stddev)), 255))
+
+def add_noise_one_pixel(im, ix, iy, mean=0, stddev=5):
+    x, y, z = im.getpixel((ix,iy))
+    thing = add_noise(x, mean, stddev)
+    im.putpixel((ix,iy), (thing,thing,thing))
+
+def convert_pixel(im, ix, iy, water, mountain, snow):
+    x, y, z = im.getpixel((ix,iy))
+    if x < water:
+        im.putpixel((ix,iy), (0,0,255))
+    elif x > snow:
+        im.putpixel((ix,iy), (255,255,255))
+    elif x > mountain:
+        im.putpixel((ix,iy), (128,128,128))
+    else:
+        im.putpixel((ix,iy), (0,255,0))
 
 if __name__ == "__main__":
     main_loop.start()
