@@ -1,6 +1,7 @@
 from hashlib import new
 import math
 import random
+import traceback
 from PIL import Image, ImageFont, ImageDraw
 import numpy as np
 from regex import P
@@ -161,28 +162,32 @@ class MapGenerator:
     def rough_roads(self, tmap):
         for road in tmap.roads:
             for p in road:
-                n = random.randint(1,8)
-                e = random.randint(1,8)
-                s = random.randint(1,8)
-                w = random.randint(1,8)
+                n = random.randint(1,4)
+                e = random.randint(1,4)
+                s = random.randint(1,4)
+                w = random.randint(1,4)
                 for i in range(1,n):
                     try:
-                        tmap.terrain[p[1]-i][p[0]].t = "path"
+                        if tmap.terrain[p.y-i][p.x].t not in ["water", "snow", "town"]:
+                            tmap.terrain[p.y-i][p.x].t = "path"
                     except:
                         pass
                 for i in range(1,e):
                     try:
-                        tmap.terrain[p[1]][p[0]+i].t = "path"
+                        if tmap.terrain[p.y][p.x+i].t not in ["water", "snow", "town"]:
+                            tmap.terrain[p.y][p.x+i].t = "path"
                     except:
                         pass
                 for i in range(1,s):
                     try:
-                        tmap.terrain[p[1]+i][p[0]].t = "path"
+                        if tmap.terrain[p.y+i][p.x].t not in ["water", "snow", "town"]:
+                            tmap.terrain[p.y+i][p.x].t = "path"
                     except:
                         pass
                 for i in range(1,w):
                     try:
-                        tmap.terrain[p[1]][p[0]-i].t = "path"
+                        if tmap.terrain[p.y][p.x-i].t not in ["water", "snow", "town"]:
+                            tmap.terrain[p.y][p.x-i].t = "path"
                     except:
                         pass
     
@@ -221,7 +226,8 @@ class MapGenerator:
             targs = self.get_path_targets(d.direction)
             steps = steps + 1
             try:
-                tmap.terrain[ptr[1]][ptr[0]].t = "path"
+                if tmap.terrain[ptr[1]][ptr[0]].t not in ["water", "snow", "town"]:
+                    tmap.terrain[ptr[1]][ptr[0]].t = "path"
                 road_points.append(RoadTile(ptr[0],ptr[1],d.direction))
                 options = []
                 for t in targs:
@@ -230,15 +236,21 @@ class MapGenerator:
                         options.append(tt)
                 closest = self.get_closest_elevation(tmap.terrain[ptr[1]][ptr[0]],options)
                 if closest == None:
-                    co = self.get_counter_options(ptr, d.direction)
+                    options = []
+                    co = self.get_counter_options(d.direction)
                     for t in co:
                         tt = tmap.terrain[ptr[1]+t[1]][ptr[0]+t[0]]
                         if tt.t not in ["water", "snow"]:
                             options.append(tt)
-                    closest = self.get_closest_elevation(tmap.terrain[ptr[1]][ptr[0]],options)
+                    if len(options) == 0:
+                        closest = MapTile(ptr[0]+d.mx,ptr[1]+d.my,0,0)
+                    else:
+                        closest = options[0]
                 ptr = (closest.x,closest.y)
-            except:
-                print("BAD")
+            except Exception as e: 
+                error = str(e)
+                tb = traceback.format_exc()
+                print(error)
                 do_nada = True
                 ptr = (ptr[0]+d.mx,ptr[1]+d.my)
         return road_points
@@ -369,20 +381,41 @@ class Map:
             for x in range(self.width):
                 color = (0,0,0)
                 tile = self.terrain[y][x].t
+                noisy = True
                 if tile == "path":
                     color = (72,64,0)
-                if tile == "grass":
+                elif tile == "grass":
                     color = (0,255,0)
-                if tile == "water":
+                elif tile == "water":
+                    noisy = False
                     color = (0,0,255)
-                if tile == "mountain":
+                elif tile == "mountain":
                     color = (128,128,128)
-                if tile == "snow":
+                elif tile == "snow":
+                    noisy = False
                     color = (255,255,255)
+                if tile != "town":
+                    if noisy is True:
+                        img.putpixel((x,y), self.noisy_color(color,stddev=10))
+                    else:
+                        img.putpixel((x,y), color)
+        for y in range(self.height):
+            for x in range(self.width):
+                color = (0,0,0)
+                tile = self.terrain[y][x].t
                 if tile == "town":
                     color = (255,128,0)
-                img.putpixel((x,y), color)
+                    img.putpixel((x,y), color)
         return img
+
+    def noisy_color(self, color, mean=0, stddev=5):
+        r = self.add_noise(color[0], mean, stddev)
+        g = self.add_noise(color[1], mean, stddev)
+        b = self.add_noise(color[2], mean, stddev)
+        return (r,g,b)
+
+    def add_noise(self, x, mean, stddev) -> int:
+        return round(min(max(0, x+random.normalvariate(mean,stddev)), 255))
 
 class MapTile:
     def __init__(self, x, y, z, t):
