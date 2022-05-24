@@ -1,10 +1,16 @@
 from hashlib import new
+import math
 import random
 from PIL import Image, ImageFont, ImageDraw
 import numpy as np
 
 class MapGenerator:
-    def generate_terrain_map(self, start_size=4, level=7, water=100, mountain=180, snow=230) -> Image:
+    def __init__(self, water=100, mountain=180, snow=230):
+        self.water = water
+        self.mountain = mountain
+        self.snow = snow
+
+    def generate_terrain_map(self, start_size=4, level=7) -> Image:
         img = self.random_img(start_size, start_size)
         n = start_size
         for i in range(level):
@@ -18,7 +24,7 @@ class MapGenerator:
                     
         for px in range(n):
             for py in range(n):
-                self.convert_pixel(img,px,py,water,mountain,snow)
+                self.convert_pixel(img,px,py)
         return img
 
     def random_img(self, width, height) -> Image:
@@ -35,13 +41,13 @@ class MapGenerator:
         thing = self.add_noise(x, mean, stddev)
         im.putpixel((ix,iy), (thing,thing,thing))
 
-    def convert_pixel(self, im, ix, iy, water, mountain, snow):
+    def convert_pixel(self, im, ix, iy):
         x, y, z = im.getpixel((ix,iy))
-        if x < water:
+        if x < self.water:
             im.putpixel((ix,iy), (0,0,255))
-        elif x > snow:
+        elif x > self.snow:
             im.putpixel((ix,iy), (255,255,255))
-        elif x > mountain:
+        elif x > self.mountain:
             im.putpixel((ix,iy), (128,128,128))
         else:
             im.putpixel((ix,iy), (0,255,0))
@@ -52,21 +58,12 @@ class MapGenerator:
             for x in range(map.width):
                 map.terrain[y][x].z = random.randint(0,255)
 
-    def assign_map_tiles(self, map, water, mountain, snow):
+    def assign_map_tiles(self, map):
         print("assign_map_tiles")
         for y in range(map.height):
             for x in range(map.width):
                 z = map.terrain[y][x].z
-                if z == -1:
-                    map.terrain[y][x].t = "void"
-                elif z < water:
-                    map.terrain[y][x].t = "water"
-                elif z > snow:
-                    map.terrain[y][x].t = "snow"
-                elif z > mountain:
-                    map.terrain[y][x].t = "mountain"
-                else:
-                    map.terrain[y][x].t = "grass"
+                map.terrain[y][x].t = self.get_terrain(z)
 
     def scale_up_map(self, map):
         print("scale_up_map")
@@ -91,7 +88,7 @@ class MapGenerator:
                     newmap.terrain[y][x].z = avg
         return newmap
 
-    def generate_terrain(self, start_size=4, level=7, water=100, mountain=180, snow=230):
+    def generate_terrain(self, start_size=4, level=7):
         print("generate_terrain")
         tmap = Map(start_size, start_size)
         self.randomize_map_tiles(tmap)
@@ -99,11 +96,11 @@ class MapGenerator:
         for i in range(level):
             n = n * 2
             tmap = self.scale_up_map(tmap)
-            # if i < level - 2:
-            #     for px in range(n-1):
-            #         for py in range(n-1):
-            #             self.add_noise_one_pixel(img,px,py)
-        self.assign_map_tiles(tmap, water, mountain, snow)
+            if i < level - 2:
+                for px in range(n-1):
+                    for py in range(n-1):
+                        tmap.terrain[py][px].z = self.add_noise(tmap.terrain[py][px].z, 0, 5)
+        self.assign_map_tiles(tmap)
         return tmap
     
     def place_random_town(self, tmap):
@@ -150,16 +147,22 @@ class MapGenerator:
                 if i != v and [i,v] not in done and [v,i] not in done:
                     tmap.roads.append(self.build_road(
                         tmap,
-                        (tmap.towns[i].x, tmap.towns[i].y),
-                        (tmap.towns[v].x, tmap.towns[v].y)
+                        # (tmap.towns[i].x, tmap.towns[i].y),
+                        # (tmap.towns[v].x, tmap.towns[v].y)
+                        (round(tmap.towns[i].x+(tmap.towns[i].size/2)), round(tmap.towns[i].y+(tmap.towns[i].size/2))),
+                        (round(tmap.towns[v].x+(tmap.towns[v].size/2)), round(tmap.towns[v].y+(tmap.towns[v].size/2)))
                     ))
                     done.append([i,v])
+        self.rough_roads(tmap)
+        #self.wiggle_roads(tmap)
+
+    def rough_roads(self, tmap):
         for road in tmap.roads:
             for p in road:
-                n = random.randint(1,5)
-                e = random.randint(1,5)
-                s = random.randint(1,5)
-                w = random.randint(1,5)
+                n = random.randint(1,8)
+                e = random.randint(1,8)
+                s = random.randint(1,8)
+                w = random.randint(1,8)
                 for i in range(1,n):
                     try:
                         tmap.terrain[p[1]-i][p[0]].t = "path"
@@ -180,61 +183,130 @@ class MapGenerator:
                         tmap.terrain[p[1]][p[0]-i].t = "path"
                     except:
                         pass
-        
+    
+    def wiggle_roads(self, tmap):
+        for road in tmap.roads:
+            for p in road:
+                targ = self.get_path_targets(p.d)
+                options = []
+                for t in targ:
+                    tt = tmap.terrain[p.y+t[1]][p.x+t[0]]
+                    options.append(tt)
+                closest = self.get_closest_elevation(tmap.terrain[p.y][p.x],options)
+                #ptr = (closest.y,closest.x)
+                tmap.terrain[closest.y][closest.x].t = "path"
+                #tmap.terrain[p.y][p.x].t = self.get_terrain(tmap.terrain[p.y][p.x].z)
+                #ptr = (ptr[0]+mx,ptr[1]+my)
+    
+    def get_terrain(self, z):
+        if z == -1:
+            return "void"
+        elif z < self.water:
+            return "water"
+        elif z > self.snow:
+            return "snow"
+        elif z > self.mountain:
+            return "mountain"
+        else:
+            return "grass"
+
     def build_road(self, tmap, start_point, end_point):
         ptr = start_point
         steps = 0
         road_points = []
-        while ptr != end_point and steps < 1000:
-            mx = 0
-            my = 0
-            if ptr[0] < end_point[0]:
-                mx = 1
-            if ptr[0] > end_point[0]:
-                mx = -1
-            if ptr[1] < end_point[1]:
-                my = 1
-            if ptr[1] > end_point[1]:
-                my = -1
+        while ptr != end_point and steps < 2000:
+            d = self.get_direction(ptr, end_point)
+            targs = self.get_path_targets(d.direction)
             steps = steps + 1
-            print(str(ptr))
             try:
-                if tmap.terrain[ptr[1]][ptr[0]].t == "path":
-                    steps = 1000
-                elif tmap.terrain[ptr[1]][ptr[0]].t not in ["town", "water", "snow"]:
-                    tmap.terrain[ptr[1]][ptr[0]].t = "path"
-                    road_points.append(ptr)
-                    # targ = []
-                    # if mx == -1 and my == -1:
-                    #     targ = [(-1,0),(-1,-1),(0,-1)]
-                    # elif mx == 0 and my == -1:
-                    #     targ = [(-1,-1),(0,-1),(1,-1)]
-                    # elif mx == 1 and my == -1:
-                    #     targ = [(0,-1),(1,-1),(1,0)]
-                    # elif mx == -1 and my == 0:
-                    #     targ = [(-1,-1),(-1,0),(-1,1)]
-                        
-                    # elif mx == 1 and my == 0:
-                    #     targ = [(1,-1),(1,0),(1,1)]
-                    # elif mx == -1 and my == 1:
-                    #     targ = [(-1,0),(-1,1),(0,1)]
-                    # elif mx == 0 and my == 1:
-                    #     targ = [(-1,1),(0,1),(1,1)]
-                    # elif mx == 1 and my == 1:
-                    #     targ = [(0,1),(1,1),(1,0)]
-                    # lowest_z = 255
-                    # lowest_p = ptr
-                    # for t in targ:
-                    #     z = tmap.terrain[ptr[1]+t[1]][ptr[0]+t[0]].z
-                    #     if z < lowest_z:
-                    #         lowest_z = z
-                    #         lowest_p = (ptr[1]+t[1],ptr[0]+t[0])
-                    # tmap.terrain[lowest_p[1]][lowest_p[0]].t = "path"
+                tmap.terrain[ptr[1]][ptr[0]].t = "path"
+                road_points.append(RoadTile(ptr[0],ptr[1],d.direction))
+                options = []
+                for t in targs:
+                    tt = tmap.terrain[ptr[1]+t[1]][ptr[0]+t[0]]
+                    if tt.t not in ["water", "snow"]:
+                        options.append(tt)
+                closest = self.get_closest_elevation(tmap.terrain[ptr[1]][ptr[0]],options)
+                ptr = (closest.x,closest.y)
             except:
                 print("BAD")
                 do_nada = True
-            ptr = (ptr[0]+mx,ptr[1]+my)
+                ptr = (ptr[0]+d.mx,ptr[1]+d.my)
         return road_points
+
+    def build_road_line(self, tmap, start_point, end_point):
+        ptr = start_point
+        steps = 0
+        road_points = []
+        while ptr != end_point and steps < 2000:
+            d = self.get_direction(ptr, end_point)
+            steps = steps + 1
+            try:
+                if tmap.terrain[ptr[1]+(d.my*2)][ptr[0]+(d.mx*2)].t == "path":
+                    steps = 1000
+                elif tmap.terrain[ptr[1]][ptr[0]].t not in ["town", "water", "snow", "path"]:
+                    tmap.terrain[ptr[1]][ptr[0]].t = "path"
+                    road_points.append(RoadTile(ptr[0],ptr[1],d.direction))
+            except:
+                print("BAD")
+                do_nada = True
+            ptr = (ptr[0]+d.mx,ptr[1]+d.my)
+        return road_points
+    
+    def get_direction(self, origin, destination):
+        mx = 0
+        my = 0
+        if origin[0] < destination[0]:
+            mx = 1
+        if origin[0] > destination[0]:
+            mx = -1
+        if origin[1] < destination[1]:
+            my = 1
+        if origin[1] > destination[1]:
+            my = -1
+        ns = ""
+        ew = ""
+        if mx == -1:
+            ew = "w"
+        elif mx == 1:
+            ew = "e"
+        if my == -1:
+            ns = "n"
+        elif my == 1:
+            ns = "s"
+        direction = ns + ew
+        return Direction(direction, mx, my)
+    
+    def get_closest_elevation(self, origin, options):
+        closest_d = 255
+        closest_p = origin
+        for option in options:
+            d =  abs(origin.z - option.z)
+            if d < closest_d:
+                closest_d = d
+                closest_p = option
+        return closest_p
+    
+    def get_path_targets(self,direction):
+        targ = []
+        if direction == "nw":
+            targ = [(-1,0),(-1,-1),(0,-1)]
+        elif direction == "n":
+            targ = [(-1,-1),(0,-1),(1,-1)]
+        elif direction == "ne":
+            targ = [(0,-1),(1,-1),(1,0)]
+        elif direction == "w":
+            targ = [(-1,-1),(-1,0),(-1,1)]
+            
+        elif direction == "e":
+            targ = [(1,-1),(1,0),(1,1)]
+        elif direction == "sw":
+            targ = [(-1,0),(-1,1),(0,1)]
+        elif direction == "s":
+            targ = [(-1,1),(0,1),(1,1)]
+        elif direction == "se":
+            targ = [(0,1),(1,1),(1,0)]
+        return targ
 
     def create_big_map(self):
         tmap = self.generate_terrain(start_size=4, level=8)
@@ -244,6 +316,18 @@ class MapGenerator:
         self.build_roads(tmap)
         map = tmap.to_image()
         map.save("tmap.png")
+
+class Direction:
+    def __init__(self, direction, mx, my):
+        self.direction = direction
+        self.mx = mx
+        self.my = my
+
+class RoadTile:
+    def __init__(self, x, y, d):
+        self.x = x
+        self.y = y
+        self.d = d
     
 class Map:
     def __init__(self, width, height):
