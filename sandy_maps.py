@@ -3,6 +3,7 @@ import math
 import random
 from PIL import Image, ImageFont, ImageDraw
 import numpy as np
+from regex import P
 
 class MapGenerator:
     def __init__(self, water=100, mountain=180, snow=230):
@@ -96,10 +97,11 @@ class MapGenerator:
         for i in range(level):
             n = n * 2
             tmap = self.scale_up_map(tmap)
-            if i < level - 2:
+            if i < level-3:
                 for px in range(n-1):
                     for py in range(n-1):
-                        tmap.terrain[py][px].z = self.add_noise(tmap.terrain[py][px].z, 0, 5)
+                        if i < level - 4 or self.get_terrain(tmap.terrain[py][px].z) == "grass":
+                            tmap.terrain[py][px].z = self.add_noise(tmap.terrain[py][px].z, 0, 5)
         self.assign_map_tiles(tmap)
         return tmap
     
@@ -227,12 +229,30 @@ class MapGenerator:
                     if tt.t not in ["water", "snow"]:
                         options.append(tt)
                 closest = self.get_closest_elevation(tmap.terrain[ptr[1]][ptr[0]],options)
+                if closest == None:
+                    co = self.get_counter_options(ptr, d.direction)
+                    for t in co:
+                        tt = tmap.terrain[ptr[1]+t[1]][ptr[0]+t[0]]
+                        if tt.t not in ["water", "snow"]:
+                            options.append(tt)
+                    closest = self.get_closest_elevation(tmap.terrain[ptr[1]][ptr[0]],options)
                 ptr = (closest.x,closest.y)
             except:
                 print("BAD")
                 do_nada = True
                 ptr = (ptr[0]+d.mx,ptr[1]+d.my)
         return road_points
+    
+    def get_counter_options(self, direction):
+        if direction == "e" or direction == "w":
+            return [(1,0),(-1,0)]
+        elif direction == "se" or direction == "nw":
+            return [(1,-1),(-1,1)]
+        elif direction == "s" or direction == "n":
+            return [(0,1),(0,-1)]
+        elif direction == "sw" or direction == "ne":
+            return [(1,1),(-1,-1)]
+        return []
 
     def build_road_line(self, tmap, start_point, end_point):
         ptr = start_point
@@ -279,7 +299,7 @@ class MapGenerator:
     
     def get_closest_elevation(self, origin, options):
         closest_d = 255
-        closest_p = origin
+        closest_p = None
         for option in options:
             d =  abs(origin.z - option.z)
             if d < closest_d:
