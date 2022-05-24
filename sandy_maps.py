@@ -148,16 +148,43 @@ class MapGenerator:
         for v in range(0, len(tmap.towns)):
             for i in range(0, len(tmap.towns)):
                 if i != v and [i,v] not in done and [v,i] not in done:
-                    self.build_road(
+                    tmap.roads.append(self.build_road(
                         tmap,
                         (tmap.towns[i].x, tmap.towns[i].y),
                         (tmap.towns[v].x, tmap.towns[v].y)
-                    )
+                    ))
                     done.append([i,v])
+        for road in tmap.roads:
+            for p in road:
+                n = random.randint(1,5)
+                e = random.randint(1,5)
+                s = random.randint(1,5)
+                w = random.randint(1,5)
+                for i in range(1,n):
+                    try:
+                        tmap.terrain[p[1]-i][p[0]].t = "path"
+                    except:
+                        pass
+                for i in range(1,e):
+                    try:
+                        tmap.terrain[p[1]][p[0]+i].t = "path"
+                    except:
+                        pass
+                for i in range(1,s):
+                    try:
+                        tmap.terrain[p[1]+i][p[0]].t = "path"
+                    except:
+                        pass
+                for i in range(1,w):
+                    try:
+                        tmap.terrain[p[1]][p[0]-i].t = "path"
+                    except:
+                        pass
         
     def build_road(self, tmap, start_point, end_point):
         ptr = start_point
         steps = 0
+        road_points = []
         while ptr != end_point and steps < 1000:
             mx = 0
             my = 0
@@ -174,11 +201,40 @@ class MapGenerator:
             try:
                 if tmap.terrain[ptr[1]][ptr[0]].t == "path":
                     steps = 1000
-                elif tmap.terrain[ptr[1]][ptr[0]].t != "town":
+                elif tmap.terrain[ptr[1]][ptr[0]].t not in ["town", "water", "snow"]:
                     tmap.terrain[ptr[1]][ptr[0]].t = "path"
+                    road_points.append(ptr)
+                    # targ = []
+                    # if mx == -1 and my == -1:
+                    #     targ = [(-1,0),(-1,-1),(0,-1)]
+                    # elif mx == 0 and my == -1:
+                    #     targ = [(-1,-1),(0,-1),(1,-1)]
+                    # elif mx == 1 and my == -1:
+                    #     targ = [(0,-1),(1,-1),(1,0)]
+                    # elif mx == -1 and my == 0:
+                    #     targ = [(-1,-1),(-1,0),(-1,1)]
+                        
+                    # elif mx == 1 and my == 0:
+                    #     targ = [(1,-1),(1,0),(1,1)]
+                    # elif mx == -1 and my == 1:
+                    #     targ = [(-1,0),(-1,1),(0,1)]
+                    # elif mx == 0 and my == 1:
+                    #     targ = [(-1,1),(0,1),(1,1)]
+                    # elif mx == 1 and my == 1:
+                    #     targ = [(0,1),(1,1),(1,0)]
+                    # lowest_z = 255
+                    # lowest_p = ptr
+                    # for t in targ:
+                    #     z = tmap.terrain[ptr[1]+t[1]][ptr[0]+t[0]].z
+                    #     if z < lowest_z:
+                    #         lowest_z = z
+                    #         lowest_p = (ptr[1]+t[1],ptr[0]+t[0])
+                    # tmap.terrain[lowest_p[1]][lowest_p[0]].t = "path"
             except:
+                print("BAD")
                 do_nada = True
             ptr = (ptr[0]+mx,ptr[1]+my)
+        return road_points
 
     def create_big_map(self):
         tmap = self.generate_terrain(start_size=4, level=8)
