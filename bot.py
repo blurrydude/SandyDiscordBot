@@ -334,7 +334,10 @@ async def getclass(ctx, arg):
 async def mapgen(ctx, *args):
     await ctx.send("This will take a minute or two...")
     mapgen = MapGenerator()
-    mapgen.create_big_map()
+    towns = 3
+    if len(args) > 0:
+        towns = int(args[0])
+    mapgen.create_big_map(towns)
     await ctx.send(file=File('tmap.png'))
 
 @bot.command(name='update', help='update bot source code and restart')

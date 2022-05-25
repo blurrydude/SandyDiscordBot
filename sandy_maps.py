@@ -139,11 +139,6 @@ class MapGenerator:
     
     def build_roads(self, tmap):
         tmap.towns.sort(key=lambda x: x.size, reverse=True)
-        # self.build_road(
-        #     tmap,
-        #     (tmap.towns[0].x, tmap.towns[0].y),
-        #     (tmap.towns[1].x, tmap.towns[1].y)
-        # )
         done = []
         for v in range(0, len(tmap.towns)):
             for i in range(0, len(tmap.towns)):
@@ -157,7 +152,6 @@ class MapGenerator:
                     ))
                     done.append([i,v])
         self.rough_roads(tmap)
-        #self.wiggle_roads(tmap)
 
     def rough_roads(self, tmap):
         for road in tmap.roads:
@@ -190,20 +184,6 @@ class MapGenerator:
                             tmap.terrain[p.y][p.x-i].t = "path"
                     except:
                         pass
-    
-    def wiggle_roads(self, tmap):
-        for road in tmap.roads:
-            for p in road:
-                targ = self.get_path_targets(p.d)
-                options = []
-                for t in targ:
-                    tt = tmap.terrain[p.y+t[1]][p.x+t[0]]
-                    options.append(tt)
-                closest = self.get_closest_elevation(tmap.terrain[p.y][p.x],options)
-                #ptr = (closest.y,closest.x)
-                tmap.terrain[closest.y][closest.x].t = "path"
-                #tmap.terrain[p.y][p.x].t = self.get_terrain(tmap.terrain[p.y][p.x].z)
-                #ptr = (ptr[0]+mx,ptr[1]+my)
     
     def get_terrain(self, z):
         if z == -1:
@@ -340,9 +320,8 @@ class MapGenerator:
             targ = [(0,1),(1,1),(1,0)]
         return targ
 
-    def create_big_map(self):
+    def create_big_map(self, towns):
         tmap = self.generate_terrain(start_size=4, level=8)
-        towns = 6
         for i in range(towns):
             self.place_random_town(tmap)
         self.build_roads(tmap)
