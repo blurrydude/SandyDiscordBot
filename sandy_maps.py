@@ -5,6 +5,7 @@ import traceback
 from PIL import Image, ImageFont, ImageDraw
 import numpy as np
 from regex import P
+from datetime import datetime
 
 class MapGenerator:
     def __init__(self, water=100, mountain=180, snow=230):
@@ -386,8 +387,12 @@ class MapGenerator:
             targ = [(0,1),(1,1),(1,0)]
         return targ
 
-    def create_big_map(self, towns):
+    def create_big_map(self, towns, seed=None):
+        if seed is None:
+            seed = datetime.now().strftime('%Y%m%d%H%M%S')
+        random.seed(seed)
         tmap = self.generate_terrain(start_size=4, level=8)
+        tmap.seed = seed
         for i in range(towns):
             self.place_random_town(tmap)
         self.build_roads(tmap)
@@ -411,6 +416,7 @@ class Map:
         self.width = width
         self.height = height
         self.terrain = []
+        self.seed = ""
         for y in range(height):
             self.terrain.append([])
             for x in range(width):
@@ -420,7 +426,8 @@ class Map:
         self.territories = []
     
     def to_image(self):
-        myFont = ImageFont.truetype('ToThePointRegular.ttf', 48)
+        myFont = ImageFont.truetype('VTC.ttf', 36)
+        seedFont = ImageFont.truetype('Koulen-Regular.ttf', 24)
         print("to_image")
         img = Image.new(mode="RGB", size=(self.width, self.height))
         for y in range(self.height):
@@ -460,6 +467,7 @@ class Map:
             if x > self.width - 200:
                 x = x - 150
             idraw.text((x, y), self.random_town_name(), fill=(0, 0, 0), font=myFont)
+        idraw.text((10, self.height-36), self.seed, fill=(0, 0, 0), font=seedFont)
         return img
 
     def random_town_name(self):

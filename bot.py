@@ -337,7 +337,10 @@ async def mapgen(ctx, *args):
     towns = 3
     if len(args) > 0:
         towns = int(args[0])
-    mapgen.create_big_map(towns)
+    seed = None
+    if len(args) > 1:
+        seed = args[1]
+    mapgen.create_big_map(towns, seed)
     await ctx.send(file=File('tmap.png'))
 
 @bot.command(name='update', help='update bot source code and restart')
