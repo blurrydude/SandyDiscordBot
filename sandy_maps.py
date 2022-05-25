@@ -426,7 +426,7 @@ class Map:
         self.territories = []
     
     def to_image(self):
-        myFont = ImageFont.truetype('VTC.ttf', 36)
+        myFont = ImageFont.truetype('Macondo-Regular.ttf', 36)
         seedFont = ImageFont.truetype('Koulen-Regular.ttf', 24)
         print("to_image")
         img = Image.new(mode="RGB", size=(self.width, self.height))
