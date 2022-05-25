@@ -420,6 +420,7 @@ class Map:
         self.territories = []
     
     def to_image(self):
+        myFont = ImageFont.truetype('ToThePointRegular.ttf', 48)
         print("to_image")
         img = Image.new(mode="RGB", size=(self.width, self.height))
         for y in range(self.height):
@@ -444,6 +445,7 @@ class Map:
                         img.putpixel((x,y), self.noisy_color(color,stddev=10))
                     else:
                         img.putpixel((x,y), color)
+        idraw = ImageDraw.Draw(img)
         for y in range(self.height):
             for x in range(self.width):
                 color = (0,0,0)
@@ -451,7 +453,47 @@ class Map:
                 if tile == "town":
                     color = (255,128,0)
                     img.putpixel((x,y), color)
+        idraw = ImageDraw.Draw(img)
+        for i in range(len(self.towns)):
+            x = self.towns[i].x + self.towns[i].size + 2
+            y = self.towns[i].y - 10
+            if x > self.width - 200:
+                x = x - 150
+            idraw.text((x, y), self.random_town_name(), fill=(0, 0, 0), font=myFont)
         return img
+
+    def random_town_name(self):
+        syllable_a = [
+            "Nu",
+            "Dew",
+            "Gri",
+            "Tei",
+            "Loe",
+            "Ji",
+            "Me",
+            "Quy"
+        ]
+        syllable_b = [
+            "ton",
+            "yu",
+            "fer",
+            "lo",
+            "ne",
+            "wa",
+            "moro",
+            "bo"
+        ]
+        syllable_c = [
+            "ton",
+            "nia",
+            "ville",
+            "to",
+            "ny",
+            " Roy",
+            "moss",
+            "im"
+        ]
+        return random.choice(syllable_a) + random.choice(syllable_b) + random.choice(syllable_c)
 
     def noisy_color(self, color, mean=0, stddev=5):
         r = self.add_noise(color[0], mean, stddev)
