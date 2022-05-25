@@ -140,50 +140,81 @@ class MapGenerator:
     def build_roads(self, tmap):
         tmap.towns.sort(key=lambda x: x.size, reverse=True)
         done = []
-        for v in range(0, len(tmap.towns)):
-            for i in range(0, len(tmap.towns)):
-                if i != v and [i,v] not in done and [v,i] not in done:
-                    tmap.roads.append(self.build_road(
-                        tmap,
-                        # (tmap.towns[i].x, tmap.towns[i].y),
-                        # (tmap.towns[v].x, tmap.towns[v].y)
-                        (round(tmap.towns[i].x+(tmap.towns[i].size/2)), round(tmap.towns[i].y+(tmap.towns[i].size/2))),
-                        (round(tmap.towns[v].x+(tmap.towns[v].size/2)), round(tmap.towns[v].y+(tmap.towns[v].size/2)))
-                    ))
+        town_count = len(tmap.towns)
+        for v in range(0, town_count):
+            town = tmap.towns[v]
+            size = town.size
+            connections = min(random.randint(1,size),town_count)
+            other_towns = []
+            for i in range(town_count):
+                if i != v:
+                    dest = tmap.towns[i]
+                    distance = self.distance((town.x,town.y),(dest.x,dest.y))
+                    other_towns.append({"town":dest,"distance":distance})
+            other_towns.sort(key=lambda x: x["distance"])
+            for i in range(connections):
+                if [i,v] not in done and [v,i] not in done:
                     done.append([i,v])
-        self.rough_roads(tmap)
+                    start = (0,0)
+                    end = (0,0)
+                    if town.x < dest.x:
+                        start = (town.x, town.y)
+                        end = (dest.x, dest.y)
+                    else:
+                        start = (dest.x, dest.y)
+                        end = (town.x, town.y)
+                    road = self.build_road(tmap, start, end)
+                    tmap.roads.append(road)
+
+        # for v in range(0, len(tmap.towns)):
+        #     for i in range(0, len(tmap.towns)):
+        #         if i != v and [i,v] not in done and [v,i] not in done and tmap.towns[i].x < tmap.towns[v].x:
+        #             road = self.build_road(
+        #                 tmap,
+        #                 # (tmap.towns[i].x, tmap.towns[i].y),
+        #                 # (tmap.towns[v].x, tmap.towns[v].y)
+        #                 (round(tmap.towns[i].x+(tmap.towns[i].size/2)), round(tmap.towns[i].y+(tmap.towns[i].size/2))),
+        #                 (round(tmap.towns[v].x+(tmap.towns[v].size/2)), round(tmap.towns[v].y+(tmap.towns[v].size/2)))
+        #             )
+        #             tmap.roads.append(road)
+        #             #self.rough_road(road, tmap)
+        #             done.append([i,v])
+        #self.rough_roads(tmap)
 
     def rough_roads(self, tmap):
         for road in tmap.roads:
-            for p in road:
-                n = random.randint(1,4)
-                e = random.randint(1,4)
-                s = random.randint(1,4)
-                w = random.randint(1,4)
-                for i in range(1,n):
-                    try:
-                        if tmap.terrain[p.y-i][p.x].t not in ["water", "snow", "town"]:
-                            tmap.terrain[p.y-i][p.x].t = "path"
-                    except:
-                        pass
-                for i in range(1,e):
-                    try:
-                        if tmap.terrain[p.y][p.x+i].t not in ["water", "snow", "town"]:
-                            tmap.terrain[p.y][p.x+i].t = "path"
-                    except:
-                        pass
-                for i in range(1,s):
-                    try:
-                        if tmap.terrain[p.y+i][p.x].t not in ["water", "snow", "town"]:
-                            tmap.terrain[p.y+i][p.x].t = "path"
-                    except:
-                        pass
-                for i in range(1,w):
-                    try:
-                        if tmap.terrain[p.y][p.x-i].t not in ["water", "snow", "town"]:
-                            tmap.terrain[p.y][p.x-i].t = "path"
-                    except:
-                        pass
+            self.rough_road(road, tmap)
+
+    def rough_road(self, road, tmap):
+        for p in road:
+            n = random.randint(1,4)
+            e = random.randint(1,4)
+            s = random.randint(1,4)
+            w = random.randint(1,4)
+            for i in range(1,n):
+                try:
+                    if tmap.terrain[p.y-i][p.x].t not in ["water", "snow", "town"]:
+                        tmap.terrain[p.y-i][p.x].t = "path"
+                except:
+                    pass
+            for i in range(1,e):
+                try:
+                    if tmap.terrain[p.y][p.x+i].t not in ["water", "snow", "town"]:
+                        tmap.terrain[p.y][p.x+i].t = "path"
+                except:
+                    pass
+            for i in range(1,s):
+                try:
+                    if tmap.terrain[p.y+i][p.x].t not in ["water", "snow", "town"]:
+                        tmap.terrain[p.y+i][p.x].t = "path"
+                except:
+                    pass
+            for i in range(1,w):
+                try:
+                    if tmap.terrain[p.y][p.x-i].t not in ["water", "snow", "town"]:
+                        tmap.terrain[p.y][p.x-i].t = "path"
+                except:
+                    pass
     
     def get_terrain(self, z):
         if z == -1:
@@ -196,13 +227,48 @@ class MapGenerator:
             return "mountain"
         else:
             return "grass"
-
+    
+    def get_slope(self, start_point, end_point):
+        rise = end_point[1] - start_point[1]
+        run = end_point[0] - start_point[0]
+        if run == 0:
+            slope = None
+        else:
+            slope = rise / run
+        return slope
+    
+    def get_next_line_point(self, origin, destination):
+        outside_points = [
+            (origin[0]+1,origin[1]-1),
+            (origin[0]+1,origin[1]),
+            (origin[0]+1,origin[1]+1),
+            (origin[0]-1,origin[1]-1),
+            (origin[0]-1,origin[1]),
+            (origin[0]-1,origin[1]+1),
+            (origin[0],origin[1]-1),
+            (origin[0],origin[1]+1)
+        ]
+        closest = 10000000.0
+        cp = None
+        for i in range(8):
+            op = outside_points[i]
+            distance = self.distance(op, destination)
+            if distance < closest:
+                closest = distance
+                cp = op
+        return cp
+    def distance(self,pointa,pointb):
+        return math.sqrt( ((pointa[0]-pointb[0])**2)+((pointa[1]-pointb[1])**2) )
     def build_road(self, tmap, start_point, end_point):
         ptr = start_point
         steps = 0
         road_points = []
         while ptr != end_point and steps < 2000:
-            d = self.get_direction(ptr, end_point)
+            nlp = self.get_next_line_point(ptr,end_point)
+            if nlp is None:
+                steps = 2000
+                continue
+            d = self.get_direction(ptr, nlp)
             targs = self.get_path_targets(d.direction)
             steps = steps + 1
             try:
