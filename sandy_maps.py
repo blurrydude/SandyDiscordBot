@@ -158,12 +158,12 @@ class MapGenerator:
                     done.append([i,v])
                     start = (0,0)
                     end = (0,0)
-                    if town.x < dest.x:
-                        start = (town.x, town.y)
-                        end = (dest.x, dest.y)
+                    if town.x > dest.x:
+                        start = (round(town.x+(town.size/2)), round(town.y+(town.size/2)))
+                        end = (round(dest.x+(dest.size/2)), round(dest.y+(dest.size/2)))
                     else:
-                        start = (dest.x, dest.y)
-                        end = (town.x, town.y)
+                        start = (round(dest.x+(dest.size/2)), round(dest.y+(dest.size/2)))
+                        end = (round(town.x+(town.size/2)), round(town.y+(town.size/2)))
                     road = self.build_road(tmap, start, end)
                     tmap.roads.append(road)
 
